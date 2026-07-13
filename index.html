@@ -37,19 +37,27 @@
     align-items: center;
     background-color: #333;
     padding: 5px 15px;
-    font-size: 14px;
+    font-size: 13px;
     border-bottom: 2px solid #444;
+    flex-wrap: wrap;
+  }
+
+  /* ボタンが入り切らない時のために少し調整 */
+  #ui-bar > div {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
   }
 
   .btn {
     background-color: #555;
     color: white;
     border: 1px solid #777;
-    padding: 2px 10px;
+    padding: 2px 8px;
     cursor: pointer;
     font-family: inherit;
     border-radius: 3px;
-    margin-left: 5px;
   }
   
   .btn:hover { background-color: #777; }
@@ -192,9 +200,9 @@
 
 <div class="main-screen">
   <h2>アップデートのお知らせ 2026/07/14</h2>
-  <p>防御力（DEF）強化機能を追加しました！</p>
-  <p style="color: #27ae60; font-weight: bold; font-size: 14px;">✓ DEFを上げることで、敵から受けるダメージを軽減できます（最低1ダメージ）</p>
-  <p>0.21.1</p>
+  <p>自己回復力（Regen）強化機能を追加しました！</p>
+  <p style="color: #27ae60; font-weight: bold; font-size: 14px;">✓ 非戦闘時のHP回復スピードを上げられるようになりました</p>
+  <p>0.22.2</p>
   
   <button class="btn-reset" onclick="resetGame()">データを削除して最初からやり直す</button>
 </div>
@@ -204,19 +212,21 @@
 <div id="game-container">
   <div id="ui-bar">
     <div>
-      <span>Lv: <span id="val-lvl">1</span></span> | 
-      <span>EXP: <span id="val-exp">0</span>/<span id="val-maxexp">10</span></span> | 
-      <span>Gold: <span id="val-gold">0</span>G</span>
+      <span>Lv:<span id="val-lvl">1</span></span> | 
+      <span>EXP:<span id="val-exp">0</span>/<span id="val-maxexp">10</span></span> | 
+      <span>Gold:<span id="val-gold">0</span>G</span>
     </div>
     <div>
-      <span>HP: <span id="val-hp">100</span>/<span id="val-maxhp">100</span></span> | 
-      <span>基本ATK: <span id="val-atk">10</span></span> |
-      <span>DEF: <span id="val-def">0</span></span>
+      <span>HP:<span id="val-hp">100</span>/<span id="val-maxhp">100</span></span> | 
+      <span>ATK:<span id="val-atk">10</span></span> |
+      <span>DEF:<span id="val-def">0</span></span> |
+      <span>Regen:<span id="val-regen">5</span>/s</span>
     </div>
     <div>
-      <button class="btn" onclick="upgradeAtk()">ATK強化 (<span id="cost-atk">10</span>G)</button>
-      <button class="btn" onclick="upgradeHp()">HP強化 (<span id="cost-hp">10</span>G)</button>
-      <button class="btn" onclick="upgradeDef()">DEF強化 (<span id="cost-def">10</span>G)</button>
+      <button class="btn" onclick="upgradeAtk()">ATK (<span id="cost-atk">10</span>G)</button>
+      <button class="btn" onclick="upgradeHp()">HP (<span id="cost-hp">10</span>G)</button>
+      <button class="btn" onclick="upgradeDef()">DEF (<span id="cost-def">10</span>G)</button>
+      <button class="btn" onclick="upgradeRegen()">回復 (<span id="cost-regen">10</span>G)</button>
       <button class="btn btn-spawn" onclick="upgradeSpawn()">出現率 Lv<span id="val-spawn-lvl">1</span> (<span id="cost-spawn">30</span>G)</button>
       <button class="btn btn-gacha" onclick="pullGacha()">武器ガチャ (<span id="cost-gacha">200</span>G)</button>
     </div>
@@ -239,11 +249,11 @@
     lvl: 1,
     exp: 0,
     maxExp: 10,
-    // ★ baseDefを追加
-    hero: { maxHp: 100, hp: 100, baseAtk: 10, baseDef: 0, x: 50, speed: 1.5, attackCooldown: 0 },
+    // ★ baseRegen（1秒あたりの自然回復量）を追加
+    hero: { maxHp: 100, hp: 100, baseAtk: 10, baseDef: 0, baseRegen: 5, x: 50, speed: 1.5, attackCooldown: 0 },
     weapon: { name: "素手", atkBonus: 0, color: "white" },
-    // ★ defCostを追加
-    upgrades: { atkCost: 10, hpCost: 10, defCost: 10, spawnLvl: 1, spawnCost: 30, gachaCost: 200 },
+    // ★ regenCostを追加
+    upgrades: { atkCost: 10, hpCost: 10, defCost: 10, regenCost: 10, spawnLvl: 1, spawnCost: 30, gachaCost: 200 },
     enemies: [],
     spawnTimer: 0,
     saveTimer: 0
@@ -263,8 +273,13 @@
   function saveGame(showNotification = false) {
     const saveData = {
       gold: state.gold, lvl: state.lvl, exp: state.exp, maxExp: state.maxExp,
-      // ★ baseDefを保存データに追加
-      hero: { maxHp: state.hero.maxHp, hp: state.hero.hp, baseAtk: state.hero.baseAtk, baseDef: state.hero.baseDef },
+      hero: { 
+        maxHp: state.hero.maxHp, 
+        hp: state.hero.hp, 
+        baseAtk: state.hero.baseAtk, 
+        baseDef: state.hero.baseDef,
+        baseRegen: state.hero.baseRegen // ★ 保存対象に追加
+      },
       weapon: state.weapon, upgrades: state.upgrades
     };
     localStorage.setItem('taskbar_hero_save_data', JSON.stringify(saveData));
@@ -289,16 +304,16 @@
         state.hero.maxHp = data.hero.maxHp ?? 100;
         state.hero.hp = data.hero.hp ?? data.hero.maxHp;
         state.hero.baseAtk = data.hero.baseAtk ?? 10;
-        // ★ 古いデータとの互換性確保用（baseDefの読み込み）
         state.hero.baseDef = data.hero.baseDef ?? 0;
+        state.hero.baseRegen = data.hero.baseRegen ?? 5; // ★ 古いデータの互換性対応（初期値5）
       }
       if (data.weapon) state.weapon = data.weapon;
       if (data.upgrades) {
         state.upgrades = data.upgrades;
         if (state.upgrades.spawnLvl === undefined) state.upgrades.spawnLvl = 1;
         if (state.upgrades.spawnCost === undefined) state.upgrades.spawnCost = 30;
-        // ★ 古いデータとの互換性確保用（defCostの読み込み）
         if (state.upgrades.defCost === undefined) state.upgrades.defCost = 10;
+        if (state.upgrades.regenCost === undefined) state.upgrades.regenCost = 10; // ★ 互換性対応
       }
     } catch (e) { console.error(e); }
   }
@@ -318,13 +333,13 @@
     document.getElementById('val-hp').innerText = Math.floor(state.hero.hp);
     document.getElementById('val-maxhp').innerText = state.hero.maxHp;
     document.getElementById('val-atk').innerText = state.hero.baseAtk;
-    // ★ DEFのUI更新
     document.getElementById('val-def').innerText = state.hero.baseDef;
+    document.getElementById('val-regen').innerText = state.hero.baseRegen; // ★ UI反映
     
     document.getElementById('cost-atk').innerText = state.upgrades.atkCost;
     document.getElementById('cost-hp').innerText = state.upgrades.hpCost;
-    // ★ DEFコストのUI更新
     document.getElementById('cost-def').innerText = state.upgrades.defCost;
+    document.getElementById('cost-regen').innerText = state.upgrades.regenCost; // ★ UI反映
     
     const isMaxSpawn = state.upgrades.spawnLvl >= 12;
     document.getElementById('val-spawn-lvl').innerText = isMaxSpawn ? "MAX" : state.upgrades.spawnLvl;
@@ -391,12 +406,21 @@
     }
   };
 
-  // ★ DEF強化関数を追加
   window.upgradeDef = () => {
     if (state.gold >= state.upgrades.defCost) {
       state.gold -= state.upgrades.defCost; 
-      state.hero.baseDef += 1; // 1回の強化でDEF+1
+      state.hero.baseDef += 1;
       state.upgrades.defCost = Math.floor(state.upgrades.defCost * 1.5); 
+      updateUI(); saveGame();
+    }
+  };
+
+  // ★ 自己回復力（Regen）の強化関数
+  window.upgradeRegen = () => {
+    if (state.gold >= state.upgrades.regenCost) {
+      state.gold -= state.upgrades.regenCost;
+      state.hero.baseRegen += 2; // 1回の強化で毎秒の回復量が+2
+      state.upgrades.regenCost = Math.floor(state.upgrades.regenCost * 1.5);
       updateUI(); saveGame();
     }
   };
@@ -461,7 +485,6 @@
         }
 
         if (frontEnemy.hp > 0 && frontEnemy.attackCooldown <= 0) {
-          // ★ DEFによるダメージ軽減（最低1ダメージは受ける）
           const takenDamage = Math.max(1, frontEnemy.atk - state.hero.baseDef);
           state.hero.hp -= takenDamage;
           showDamage(state.hero.x, takenDamage);
@@ -510,8 +533,10 @@
       if (e.x > targetX) e.x -= e.speed * 60 * dt;
     });
     
+    // ★ ここを強化したRegen値（baseRegen）に基づく回復量に変更
     if (!isFighting && state.hero.hp < state.hero.maxHp) {
-      state.hero.hp += 5 * dt; 
+      // 最大HPを超えないようにMath.minで制限をかける
+      state.hero.hp = Math.min(state.hero.hp + state.hero.baseRegen * dt, state.hero.maxHp);
     }
   }
 
