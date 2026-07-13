@@ -42,7 +42,6 @@
     flex-wrap: wrap;
   }
 
-  /* ボタンが入り切らない時のために少し調整 */
   #ui-bar > div {
     display: flex;
     align-items: center;
@@ -199,10 +198,11 @@
 <body>
 
 <div class="main-screen">
-  <h2>アップデートのお知らせ 2026/07/14  8:52</h2>
-  <p>自己回復力（Regen）強化機能を追加しました！</p>
-  <p style="color: #27ae60; font-weight: bold; font-size: 14px;">✓ 非戦闘時のHP回復スピードを上げられるようになりました</p>
-  <p>0.22.2</p>
+  <h2>アップデートのお知らせ 2026/07/14  8:59</h2>
+  <p>敵のステータスインフレ（難易度）を上方修正しました！</p>
+  <p style="color: #c0392b; font-weight: bold; font-size: 14px;">✓ レベルが上がるにつれて、敵のHPがより跳ね上がるようになりました</p>
+  <p style="color: #c0392b; font-weight: bold; font-size: 14px;">✓ 敵の攻撃力（ATK）も強化され、DEFやRegenを上げないと耐えきれなくなります</p>
+  <p>0.23.3</p>
   
   <button class="btn-reset" onclick="resetGame()">データを削除して最初からやり直す</button>
 </div>
@@ -249,10 +249,8 @@
     lvl: 1,
     exp: 0,
     maxExp: 10,
-    // ★ baseRegen（1秒あたりの自然回復量）を追加
     hero: { maxHp: 100, hp: 100, baseAtk: 10, baseDef: 0, baseRegen: 5, x: 50, speed: 1.5, attackCooldown: 0 },
     weapon: { name: "素手", atkBonus: 0, color: "white" },
-    // ★ regenCostを追加
     upgrades: { atkCost: 10, hpCost: 10, defCost: 10, regenCost: 10, spawnLvl: 1, spawnCost: 30, gachaCost: 200 },
     enemies: [],
     spawnTimer: 0,
@@ -278,7 +276,7 @@
         hp: state.hero.hp, 
         baseAtk: state.hero.baseAtk, 
         baseDef: state.hero.baseDef,
-        baseRegen: state.hero.baseRegen // ★ 保存対象に追加
+        baseRegen: state.hero.baseRegen
       },
       weapon: state.weapon, upgrades: state.upgrades
     };
@@ -305,7 +303,7 @@
         state.hero.hp = data.hero.hp ?? data.hero.maxHp;
         state.hero.baseAtk = data.hero.baseAtk ?? 10;
         state.hero.baseDef = data.hero.baseDef ?? 0;
-        state.hero.baseRegen = data.hero.baseRegen ?? 5; // ★ 古いデータの互換性対応（初期値5）
+        state.hero.baseRegen = data.hero.baseRegen ?? 5; 
       }
       if (data.weapon) state.weapon = data.weapon;
       if (data.upgrades) {
@@ -313,7 +311,7 @@
         if (state.upgrades.spawnLvl === undefined) state.upgrades.spawnLvl = 1;
         if (state.upgrades.spawnCost === undefined) state.upgrades.spawnCost = 30;
         if (state.upgrades.defCost === undefined) state.upgrades.defCost = 10;
-        if (state.upgrades.regenCost === undefined) state.upgrades.regenCost = 10; // ★ 互換性対応
+        if (state.upgrades.regenCost === undefined) state.upgrades.regenCost = 10; 
       }
     } catch (e) { console.error(e); }
   }
@@ -334,12 +332,12 @@
     document.getElementById('val-maxhp').innerText = state.hero.maxHp;
     document.getElementById('val-atk').innerText = state.hero.baseAtk;
     document.getElementById('val-def').innerText = state.hero.baseDef;
-    document.getElementById('val-regen').innerText = state.hero.baseRegen; // ★ UI反映
+    document.getElementById('val-regen').innerText = state.hero.baseRegen; 
     
     document.getElementById('cost-atk').innerText = state.upgrades.atkCost;
     document.getElementById('cost-hp').innerText = state.upgrades.hpCost;
     document.getElementById('cost-def').innerText = state.upgrades.defCost;
-    document.getElementById('cost-regen').innerText = state.upgrades.regenCost; // ★ UI反映
+    document.getElementById('cost-regen').innerText = state.upgrades.regenCost; 
     
     const isMaxSpawn = state.upgrades.spawnLvl >= 12;
     document.getElementById('val-spawn-lvl').innerText = isMaxSpawn ? "MAX" : state.upgrades.spawnLvl;
@@ -415,11 +413,10 @@
     }
   };
 
-  // ★ 自己回復力（Regen）の強化関数
   window.upgradeRegen = () => {
     if (state.gold >= state.upgrades.regenCost) {
       state.gold -= state.upgrades.regenCost;
-      state.hero.baseRegen += 2; // 1回の強化で毎秒の回復量が+2
+      state.hero.baseRegen += 2;
       state.upgrades.regenCost = Math.floor(state.upgrades.regenCost * 1.5);
       updateUI(); saveGame();
     }
@@ -450,11 +447,15 @@
     state.spawnTimer += dt;
     if (state.spawnTimer > getSpawnInterval() && state.enemies.length < 8) {
       const isBoss = Math.random() < 0.1;
-      const multiplier = 1 + (state.lvl * 0.3);
+      
+      // ★ 敵のインフレ計算を修正（より強力に）
+      const hpMultiplier = Math.pow(1 + (state.lvl * 0.5), 1.2); 
+      const atkMultiplier = 1 + (state.lvl * 0.6);
+
       state.enemies.push({
-        hp: (isBoss ? 80 : 25) * multiplier,
-        maxHp: (isBoss ? 80 : 25) * multiplier,
-        atk: (isBoss ? 8 : 3) * multiplier,
+        hp: (isBoss ? 80 : 25) * hpMultiplier,
+        maxHp: (isBoss ? 80 : 25) * hpMultiplier,
+        atk: (isBoss ? 8 : 3) * atkMultiplier,
         x: window.innerWidth > 0 ? window.innerWidth : 1000,
         speed: 1.2,
         goldDrop: (isBoss ? 25 : 5) * state.lvl, 
@@ -533,9 +534,7 @@
       if (e.x > targetX) e.x -= e.speed * 60 * dt;
     });
     
-    // ★ ここを強化したRegen値（baseRegen）に基づく回復量に変更
     if (!isFighting && state.hero.hp < state.hero.maxHp) {
-      // 最大HPを超えないようにMath.minで制限をかける
       state.hero.hp = Math.min(state.hero.hp + state.hero.baseRegen * dt, state.hero.maxHp);
     }
   }
