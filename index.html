@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Taskbar Idle Hero - Gold Growth Edition</title>
+<title>Taskbar Idle Hero - Enemy Rush Edition</title>
 <style>
   body {
     margin: 0;
@@ -54,6 +54,12 @@
   
   .btn:hover { background-color: #777; }
   
+  .btn-spawn {
+    background-color: #2980b9;
+    border-color: #3498db;
+  }
+  .btn-spawn:hover { background-color: #3498db; }
+
   .btn-gacha {
     background-color: #e6b800;
     color: #111;
@@ -185,13 +191,13 @@
 <body>
 
 <div class="main-screen">
-  <h2>アップデートのお知らせ</h2>
-  <p>レベルアップ時のゴールド獲得システムを追加しました！</p>
-  <p style="color: #27ae60; font-weight: bold; font-size: 14px;">✓ レベルが上がるとその場で大量のゴールドボーナスを獲得します</p>
-  <p style="color: #f39c12; font-weight: bold; font-size: 14px;">✓ レベルが上がるほど、敵（EやB）が落とすゴールドも自動で増加します</p>
-  </p>バージョン:0.20.0</p>
+  <h2>アップデートのお知らせ 2026/07/14 1:12</h2>
+  <p>出現率（スポーン速度）強化機能を追加しました！</p>
+  <p style="color: #27ae60; font-weight: bold; font-size: 14px;">✓ 出現率を上げることで、敵が途切れずハイペースで放置効率がアップします</p>
+  <p style="color: #2980b9; font-weight: bold; font-size: 14px;">✓ 強化レベルに応じて、出現間隔が最短0.3秒まで短縮されます（最大Lv12）</p>
+  <p>0.20.1</p>
   
-  <button class="btn-reset" onclick="resetGame()">データを削除して最初からやり直す</button>
+  <button class="btn-reset" onclick="resetGame()">データを削除して最初からやり過す</button>
 </div>
 
 <div id="save-toast">セーブ完了 💾</div>
@@ -210,6 +216,7 @@
     <div>
       <button class="btn" onclick="upgradeAtk()">ATK強化 (<span id="cost-atk">10</span>G)</button>
       <button class="btn" onclick="upgradeHp()">HP強化 (<span id="cost-hp">10</span>G)</button>
+      <button class="btn btn-spawn" onclick="upgradeSpawn()">出現率 Lv<span id="val-spawn-lvl">1</span> (<span id="cost-spawn">30</span>G)</button>
       <button class="btn btn-gacha" onclick="pullGacha()">武器ガチャ (<span id="cost-gacha">200</span>G)</button>
     </div>
   </div>
@@ -233,7 +240,8 @@
     maxExp: 10,
     hero: { maxHp: 100, hp: 100, baseAtk: 10, x: 50, speed: 1.5, attackCooldown: 0 },
     weapon: { name: "素手", atkBonus: 0, color: "white" },
-    upgrades: { atkCost: 10, hpCost: 10, gachaCost: 200 },
+    // ★ spawnLvlとspawnCostを追加
+    upgrades: { atkCost: 10, hpCost: 10, spawnLvl: 1, spawnCost: 30, gachaCost: 200 },
     enemies: [],
     spawnTimer: 0,
     saveTimer: 0
@@ -244,6 +252,12 @@
   const heroHpBar = document.getElementById('hero-hp-bar');
 
   function getTotalAtk() { return state.hero.baseAtk + state.weapon.atkBonus; }
+
+  // ★ 現在の出現間隔（秒）を計算する関数 (Lv1=1.5秒, Lv12=0.3秒)
+  function getSpawnInterval() {
+    const interval = 1.6 - (state.upgrades.spawnLvl * 0.1);
+    return Math.max(0.3, interval); 
+  }
 
   function saveGame(showNotification = false) {
     const saveData = {
@@ -275,7 +289,12 @@
         state.hero.baseAtk = data.hero.baseAtk ?? 10;
       }
       if (data.weapon) state.weapon = data.weapon;
-      if (data.upgrades) state.upgrades = data.upgrades;
+      if (data.upgrades) {
+        state.upgrades = data.upgrades;
+        // 古いデータとの互換性確保
+        if (state.upgrades.spawnLvl === undefined) state.upgrades.spawnLvl = 1;
+        if (state.upgrades.spawnCost === undefined) state.upgrades.spawnCost = 30;
+      }
     } catch (e) { console.error(e); }
   }
 
@@ -290,13 +309,19 @@
     document.getElementById('val-lvl').innerText = state.lvl;
     document.getElementById('val-exp').innerText = Math.floor(state.exp);
     document.getElementById('val-maxexp').innerText = state.maxExp;
-    document.getElementById('val-gold').innerText = Math.floor(state.gold); // 小数点対策にMath.floor
+    document.getElementById('val-gold').innerText = Math.floor(state.gold);
     document.getElementById('val-hp').innerText = Math.floor(state.hero.hp);
     document.getElementById('val-maxhp').innerText = state.hero.maxHp;
     document.getElementById('val-atk').innerText = state.hero.baseAtk;
     
     document.getElementById('cost-atk').innerText = state.upgrades.atkCost;
     document.getElementById('cost-hp').innerText = state.upgrades.hpCost;
+    
+    // ★ 出現率関連のUI更新
+    const isMaxSpawn = state.upgrades.spawnLvl >= 12;
+    document.getElementById('val-spawn-lvl').innerText = isMaxSpawn ? "MAX" : state.upgrades.spawnLvl;
+    document.getElementById('cost-spawn').innerText = isMaxSpawn ? "--" : state.upgrades.spawnCost;
+
     document.getElementById('cost-gacha').innerText = state.upgrades.gachaCost;
 
     const equipNameEl = document.getElementById('val-equip-name');
@@ -332,8 +357,7 @@
       resultMsg = `🗑️ ${name} (ATK+${bonus}) は弱かったので捨てた...`;
     }
     showGachaResult(resultMsg, color);
-    updateUI();
-    saveGame();
+    updateUI(); saveGame();
   };
 
   function showGachaResult(text, color) {
@@ -359,6 +383,17 @@
     }
   };
 
+  // ★ 出現率強化の関数を追加
+  window.upgradeSpawn = () => {
+    if (state.upgrades.spawnLvl >= 12) return; // レベル12(0.3秒)でMAX
+    if (state.gold >= state.upgrades.spawnCost) {
+      state.gold -= state.upgrades.spawnCost;
+      state.upgrades.spawnLvl += 1;
+      state.upgrades.spawnCost = Math.floor(state.upgrades.spawnCost * 1.8);
+      updateUI(); saveGame();
+    }
+  };
+
   function showDamage(x, damage) {
     if (document.hidden) return;
     const el = document.createElement('div');
@@ -372,7 +407,8 @@
     if (state.saveTimer > 5) { saveGame(true); state.saveTimer = 0; }
 
     state.spawnTimer += dt;
-    if (state.spawnTimer > 1.5 && state.enemies.length < 4) {
+    // ★ 敵の同時出現上限を4体から8体に拡張
+    if (state.spawnTimer > getSpawnInterval() && state.enemies.length < 8) {
       const isBoss = Math.random() < 0.1;
       const multiplier = 1 + (state.lvl * 0.3);
       state.enemies.push({
@@ -381,7 +417,6 @@
         atk: (isBoss ? 8 : 3) * multiplier,
         x: window.innerWidth > 0 ? window.innerWidth : 1000,
         speed: 1.2,
-        // ★ レベルが上がるほど敵のドロップゴールドがアップ（Lv1=5G, Lv5=25G...）
         goldDrop: (isBoss ? 25 : 5) * state.lvl, 
         expDrop: (isBoss ? 10 : 2) * state.lvl,
         attackCooldown: 0,
@@ -427,15 +462,12 @@
             state.hero.maxHp += 15; state.hero.hp = state.hero.maxHp;
             state.hero.baseAtk += 1;
             
-            // ★【新機能】レベルアップした瞬間にゴールド報酬を獲得！
             const levelUpReward = state.lvl * 50; 
             state.gold += levelUpReward;
             
-            // バックグラウンド時にエフェクトが溜まらないよう、見えている時だけテキスト表示
             if (!document.hidden) {
-              showDamage(state.hero.x, levelUpReward); // 獲得ゴールドを画面にふわっと出す
+              showDamage(state.hero.x, levelUpReward);
             }
-
             saveGame();
           }
         }
