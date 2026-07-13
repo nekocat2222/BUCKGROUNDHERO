@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Taskbar Idle Hero - Perfect Idle Edition</title>
+<style>
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: #f0f0f0;
+    font-family: 'Courier New', Courier, monospace;
+    overflow: hidden;
+  }
+  
+  .main-screen {
+    padding: 20px;
+    height: calc(100vh - 150px);
+  }
+
+  #game-container {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    height: 150px;
+    background-color: #1e1e1e;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    border-top: 4px solid #444;
+  }
+
+  #ui-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #333;
+    padding: 5px 15px;
+    font-size: 14px;
+    border-bottom: 2px solid #444;
+  }
+
+  .btn {
+    background-color: #555;
+    color: white;
+    border: 1px solid #777;
+    padding: 2px 10px;
+    cursor: pointer;
+    font-family: inherit;
+    border-radius: 3px;
+    margin-left: 5px;
+  }
+  
+  .btn:hover { background-color: #777; }
+  
+  .btn-gacha {
+    background-color: #e6b800;
+    color: #111;
+    border-color: #fff;
+    font-weight: bold;
+  }
+  .btn-gacha:hover { background-color: #ffcc00; }
+
+  #equip-bar {
+    background-color: #222;
+    padding: 2px 15px;
+    font-size: 12px;
+    color: #aaa;
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid #444;
+  }
+
+  #battle-field {
+    position: relative;
+    flex-grow: 1;
+    overflow: hidden;
+    background: url('data:image/svg+xml;utf8,<svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><rect width="40" height="40" fill="%23222"/><rect width="20" height="20" fill="%232a2a2a"/><rect x="20" y="20" width="20" height="20" fill="%232a2a2a"/></svg>') repeat;
+  }
+
+  .entity {
+    position: absolute;
+    bottom: 20px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    border-radius: 4px;
+  }
+
+  #hero {
+    left: 50px;
+    background-color: #4CAF50;
+    box-shadow: 0 0 10px #4CAF50;
+  }
+
+  .enemy {
+    background-color: #F44336;
+    box-shadow: 0 0 10px #F44336;
+  }
+
+  .hp-bar-container {
+    position: absolute;
+    top: -10px;
+    left: -4px;
+    width: 40px;
+    height: 5px;
+    background-color: black;
+    border: 1px solid #777;
+  }
+
+  .hp-bar {
+    height: 100%;
+    background-color: #00ff00;
+    width: 100%;
+  }
+
+  .enemy .hp-bar { background-color: #ff3333; }
+
+  .damage-text {
+    position: absolute;
+    color: #ffcc00;
+    font-weight: bold;
+    font-size: 14px;
+    pointer-events: none;
+    animation: floatUp 0.8s forwards;
+  }
+
+  .gacha-result {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 20px;
+    font-weight: bold;
+    text-shadow: 2px 2px 4px #000;
+    pointer-events: none;
+    animation: popInOut 2s forwards;
+    z-index: 10;
+  }
+
+  @keyframes floatUp {
+    0% { transform: translateY(0); opacity: 1; }
+    100% { transform: translateY(-30px); opacity: 0; }
+  }
+  @keyframes popInOut {
+    0% { transform: translate(-50%, 20px) scale(0.5); opacity: 0; }
+    20% { transform: translate(-50%, 0) scale(1.2); opacity: 1; }
+    80% { transform: translate(-50%, 0) scale(1); opacity: 1; }
+    100% { transform: translate(-50%, -20px) scale(1); opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="main-screen">
+  <h2>メインの作業画面</h2>
+  <p>完全放置に対応しました！別タブを開いていても裏でゲームが進行します。</p>
+  <p style="color: #27ae60; font-weight: bold; font-size: 14px;">✓ Web Workerによるバックグラウンド演算を実装済み</p>
+</div>
+
+<div id="game-container">
+  <div id="ui-bar">
+    <div>
+      <span>Lv: <span id="val-lvl">1</span></span> | 
+      <span>EXP: <span id="val-exp">0</span>/<span id="val-maxexp">10</span></span> | 
+      <span>Gold: <span id="val-gold">0</span>G</span>
+    </div>
+    <div>
+      <span>HP: <span id="val-hp">100</span>/<span id="val-maxhp">100</span></span> | 
+      <span>基本ATK: <span id="val-atk">10</span></span>
+    </div>
+    <div>
+      <button class="btn" onclick="upgradeAtk()">ATK強化 (<span id="cost-atk">10</span>G)</button>
+      <button class="btn" onclick="upgradeHp()">HP強化 (<span id="cost-hp">10</span>G)</button>
+      <button class="btn btn-gacha" onclick="pullGacha()">武器ガチャ (<span id="cost-gacha">200</span>G)</button>
+    </div>
+  </div>
+  <div id="equip-bar">
+    <span>現在の武器: <strong id="val-equip-name" style="color: white;">素手</strong> (ATK +<span id="val-equip-atk">0</span>)</span>
+    <span>総ATK: <strong id="val-total-atk" style="color: #ff9999;">10</strong></span>
+  </div>
+  <div id="battle-field">
+    <div id="hero" class="entity">
+      H
+      <div class="hp-bar-container"><div class="hp-bar" id="hero-hp-bar"></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ゲームのデータ状態
+  const state = {
+    gold: 0,
+    lvl: 1,
+    exp: 0,
+    maxExp: 10,
+    hero: { maxHp: 100, hp: 100, baseAtk: 10, x: 50, speed: 1.5, attackCooldown: 0 },
+    weapon: { name: "素手", atkBonus: 0, color: "white" },
+    upgrades: { atkCost: 10, hpCost: 10, gachaCost: 200 },
+    enemies: [],
+    spawnTimer: 0
+  };
+
+  const battleField = document.getElementById('battle-field');
+  const heroEl = document.getElementById('hero');
+  const heroHpBar = document.getElementById('hero-hp-bar');
+
+  function getTotalAtk() { return state.hero.baseAtk + state.weapon.atkBonus; }
+
+  function updateUI() {
+    document.getElementById('val-lvl').innerText = state.lvl;
+    document.getElementById('val-exp').innerText = Math.floor(state.exp);
+    document.getElementById('val-maxexp').innerText = state.maxExp;
+    document.getElementById('val-gold').innerText = state.gold;
+    document.getElementById('val-hp').innerText = Math.floor(state.hero.hp);
+    document.getElementById('val-maxhp').innerText = state.hero.maxHp;
+    document.getElementById('val-atk').innerText = state.hero.baseAtk;
+    
+    document.getElementById('cost-atk').innerText = state.upgrades.atkCost;
+    document.getElementById('cost-hp').innerText = state.upgrades.hpCost;
+    document.getElementById('cost-gacha').innerText = state.upgrades.gachaCost;
+
+    const equipNameEl = document.getElementById('val-equip-name');
+    equipNameEl.innerText = state.weapon.name;
+    equipNameEl.style.color = state.weapon.color;
+    document.getElementById('val-equip-atk').innerText = state.weapon.atkBonus;
+    document.getElementById('val-total-atk').innerText = getTotalAtk();
+
+    heroHpBar.style.width = (state.hero.hp / state.hero.maxHp * 100) + '%';
+  }
+
+  window.pullGacha = () => {
+    if (state.gold < state.upgrades.gachaCost) return;
+    state.gold -= state.upgrades.gachaCost;
+    state.upgrades.gachaCost = Math.floor(state.upgrades.gachaCost * 1.5);
+    
+    const roll = Math.random();
+    let rarity, color, minAtk, maxAtk, prefix;
+    if (roll < 0.05) { rarity = "Legendary"; color = "#ffd700"; minAtk = 50; maxAtk = 150; prefix = ["神の", "滅びの", "伝説の"]; }
+    else if (roll < 0.20) { rarity = "Epic"; color = "#da70d6"; minAtk = 20; maxAtk = 49; prefix = ["魔王の", "血塗られた", "覇者の"]; }
+    else if (roll < 0.50) { rarity = "Rare"; color = "#4169e1"; minAtk = 8; maxAtk = 19; prefix = ["鋼鉄の", "鋭い", "騎士の"]; }
+    else { rarity = "Common"; color = "#a9a9a9"; minAtk = 1; maxAtk = 7; prefix = ["ボロボロの", "木の", "普通の"]; }
+
+    const weapons = ["剣", "斧", "槍", "ダガー"];
+    const name = prefix[Math.floor(Math.random() * prefix.length)] + weapons[Math.floor(Math.random() * weapons.length)];
+    const bonus = Math.floor(Math.random() * (maxAtk - minAtk + 1)) + minAtk;
+
+    let resultMsg = "";
+    if (bonus > state.weapon.atkBonus) {
+      state.weapon = { name: name, atkBonus: bonus, color: color };
+      resultMsg = `✨ ${name} (ATK+${bonus}) を手に入れた！`;
+    } else {
+      resultMsg = `🗑️ ${name} (ATK+${bonus}) は弱かったので捨てた...`;
+    }
+    showGachaResult(resultMsg, color);
+    updateUI();
+  };
+
+  function showGachaResult(text, color) {
+    if (document.hidden) return; // タブが非表示の時はエフェクト生成をスキップして重くなるのを防ぐ
+    const el = document.createElement('div');
+    el.className = 'gacha-result'; el.innerText = text; el.style.color = color;
+    battleField.appendChild(el); setTimeout(() => el.remove(), 2000);
+  }
+
+  window.upgradeAtk = () => {
+    if (state.gold >= state.upgrades.atkCost) {
+      state.gold -= state.upgrades.atkCost; state.hero.baseAtk += 2;
+      state.upgrades.atkCost = Math.floor(state.upgrades.atkCost * 1.5); updateUI();
+    }
+  };
+
+  window.upgradeHp = () => {
+    if (state.gold >= state.upgrades.hpCost) {
+      state.gold -= state.upgrades.hpCost; state.hero.maxHp += 20;
+      state.hero.hp = state.hero.maxHp; state.upgrades.hpCost = Math.floor(state.upgrades.hpCost * 1.5); updateUI();
+    }
+  };
+
+  function showDamage(x, damage) {
+    if (document.hidden) return; // タブ非表示時は数字を出さない
+    const el = document.createElement('div');
+    el.className = 'damage-text'; el.innerText = Math.floor(damage);
+    el.style.left = x + 'px'; el.style.bottom = '50px';
+    battleField.appendChild(el); setTimeout(() => el.remove(), 800);
+  }
+
+  // --- バックグラウンド完全放置のためのロジック ---
+
+  // 1. 敵のDOM要素を同期する関数
+  function syncEnemyDOM() {
+    if (document.hidden) return; // タブが隠れている時はDOM操作をしない
+
+    // 既存の敵のDOMを一旦すべて削除して再生成（シンプル化のため）
+    const existingElements = battleField.querySelectorAll('.enemy');
+    existingElements.forEach(el => el.remove());
+
+    state.enemies.forEach(enemy => {
+      const el = document.createElement('div');
+      el.className = 'entity enemy';
+      if(enemy.isBoss) {
+        el.style.width = '40px'; el.style.height = '40px';
+        el.style.backgroundColor = '#9C27B0'; el.style.boxShadow = '0 0 10px #9C27B0';
+        el.innerText = 'B';
+      } else {
+        el.innerText = 'E';
+      }
+      el.style.left = enemy.x + 'px';
+      
+      const hpContainer = document.createElement('div'); hpContainer.className = 'hp-bar-container';
+      const hpBar = document.createElement('div'); hpBar.className = 'hp-bar';
+      hpBar.style.width = Math.max(0, (enemy.hp / enemy.maxHp) * 100) + '%';
+      hpContainer.appendChild(hpBar); el.appendChild(hpContainer);
+      
+      battleField.appendChild(el);
+    });
+  }
+
+  // 2. ゲームの純粋な計算ロジック（描画を一切含まない）
+  function tickGame(dt) {
+    state.spawnTimer += dt;
+    if (state.spawnTimer > 1.5 && state.enemies.length < 4) {
+      // 敵の生成ロジック
+      const isBoss = Math.random() < 0.1;
+      const multiplier = 1 + (state.lvl * 0.3);
+      state.enemies.push({
+        hp: (isBoss ? 80 : 25) * multiplier,
+        maxHp: (isBoss ? 80 : 25) * multiplier,
+        atk: (isBoss ? 8 : 3) * multiplier,
+        x: window.innerWidth > 0 ? window.innerWidth : 1000,
+        speed: 1.2,
+        goldDrop: (isBoss ? 25 : 5) * state.lvl,
+        expDrop: (isBoss ? 10 : 2) * state.lvl,
+        attackCooldown: 0,
+        isBoss: isBoss
+      });
+      state.spawnTimer = 0;
+    }
+
+    let isFighting = false;
+    const combatDistance = 35;
+    const renderWidth = window.innerWidth > 0 ? window.innerWidth : 1000;
+
+    if (state.enemies.length > 0) {
+      const frontEnemy = state.enemies[0];
+      const dist = frontEnemy.x - state.hero.x;
+      
+      if (dist <= combatDistance) {
+        isFighting = true;
+        state.hero.attackCooldown -= dt;
+        frontEnemy.attackCooldown -= dt;
+
+        if (state.hero.attackCooldown <= 0) {
+          frontEnemy.hp -= getTotalAtk();
+          showDamage(frontEnemy.x, getTotalAtk());
+          state.hero.attackCooldown = 0.5;
+        }
+
+        if (frontEnemy.hp > 0 && frontEnemy.attackCooldown <= 0) {
+          state.hero.hp -= frontEnemy.atk;
+          showDamage(state.hero.x, frontEnemy.atk);
+          frontEnemy.attackCooldown = 0.8;
+        }
+
+        if (frontEnemy.hp <= 0) {
+          state.gold += frontEnemy.goldDrop;
+          state.exp += frontEnemy.expDrop;
+          state.enemies.shift();
+          isFighting = false;
+          
+          if (state.exp >= state.maxExp) {
+            state.lvl++; state.exp -= state.maxExp;
+            state.maxExp = Math.floor(state.maxExp * 1.5);
+            state.hero.maxHp += 15; state.hero.hp = state.hero.maxHp;
+            state.hero.baseAtk += 1;
+          }
+        }
+
+        if (state.hero.hp <= 0) {
+          state.hero.hp = state.hero.maxHp;
+          state.hero.x = 10;
+        }
+      }
+    }
+
+    if (!isFighting) {
+      state.hero.x += state.hero.speed * 60 * dt; 
+      if (state.hero.x > renderWidth / 3) {
+        state.hero.x = renderWidth / 3;
+        state.enemies.forEach(e => { e.x -= state.hero.speed * 60 * dt; });
+      }
+    }
+
+    state.enemies.forEach((e, index) => {
+      let targetX = state.hero.x + combatDistance;
+      if (index > 0) targetX = state.enemies[index - 1].x + 40;
+      if (e.x > targetX) e.x -= e.speed * 60 * dt;
+    });
+    
+    if (!isFighting && state.hero.hp < state.hero.maxHp) {
+      state.hero.hp += 5 * dt; 
+    }
+  }
+
+  // 3. Web Workerの作成 (インライン文字列から生成して別スレッドでタイマーを回す)
+  const workerCode = `
+    let lastTime = Date.now();
+    setInterval(() => {
+      const now = Date.now();
+      const dt = (now - lastTime) / 1000;
+      lastTime = now;
+      postMessage(dt);
+    }, 1000 / 60); // 秒間60回シミュレート
+  `;
+  
+  const blob = new Blob([workerCode], { type: 'application/javascript' });
+  const worker = new Worker(URL.createObjectURL(blob));
+
+  // 4. 裏でタイマーが刻まれるたびに実行される処理
+  worker.onmessage = function(e) {
+    let dt = e.data;
+    if (dt > 0.1) dt = 0.1; // 超極端なスパイク対策ストッパー
+
+    // 計算を実行 (タブが閉じられていない限り、裏でも表でも常に等速で動く)
+    tickGame(dt);
+
+    // 画面が見えている時だけ、見た目を更新する (ブラウザの負荷を減らす)
+    if (!document.hidden) {
+      heroEl.style.left = state.hero.x + 'px';
+      syncEnemyDOM();
+      updateUI();
+    }
+  };
+
+  // 画面に戻ってきた瞬間にUIを一回強制更新する
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      updateUI();
+      syncEnemyDOM();
+    }
+  });
+
+  // 初回起動
+  updateUI();
+
+</script>
+</body>
+</html>
