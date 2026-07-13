@@ -1,9 +1,9 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Taskbar Idle Hero - Perfect Idle Edition</title>
+<title>Taskbar Idle Hero - Perfect Save Edition</title>
 <style>
   body {
     margin: 0;
@@ -16,6 +16,7 @@
   .main-screen {
     padding: 20px;
     height: calc(100vh - 150px);
+    box-sizing: border-box;
   }
 
   #game-container {
@@ -60,6 +61,18 @@
     font-weight: bold;
   }
   .btn-gacha:hover { background-color: #ffcc00; }
+
+  .btn-reset {
+    background-color: #d63031;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    font-size: 12px;
+    border-radius: 3px;
+    cursor: pointer;
+    margin-top: 15px;
+  }
+  .btn-reset:hover { background-color: #ff7675; }
 
   #equip-bar {
     background-color: #222;
@@ -141,6 +154,22 @@
     z-index: 10;
   }
 
+  #save-toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background-color: #2ecc71;
+    color: white;
+    padding: 8px 15px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+    z-index: 100;
+  }
+
   @keyframes floatUp {
     0% { transform: translateY(0); opacity: 1; }
     100% { transform: translateY(-30px); opacity: 0; }
@@ -157,7 +186,10 @@
 
 <div class="main-screen">
 
+   <button class="btn-reset" onclick="resetGame()">データを削除して最初からやり直す</button>
 </div>
+
+<div id="save-toast">セーブ完了 💾</div>
 
 <div id="game-container">
   <div id="ui-bar">
@@ -199,7 +231,8 @@
     weapon: { name: "素手", atkBonus: 0, color: "white" },
     upgrades: { atkCost: 10, hpCost: 10, gachaCost: 200 },
     enemies: [],
-    spawnTimer: 0
+    spawnTimer: 0,
+    saveTimer: 0 // ★セーブ間隔を測るタイマー
   };
 
   const battleField = document.getElementById('battle-field');
@@ -207,6 +240,64 @@
   const heroHpBar = document.getElementById('hero-hp-bar');
 
   function getTotalAtk() { return state.hero.baseAtk + state.weapon.atkBonus; }
+
+  // ★ セーブ機能の追加
+  function saveGame(showNotification = false) {
+    const saveData = {
+      gold: state.gold,
+      lvl: state.lvl,
+      exp: state.exp,
+      maxExp: state.maxExp,
+      hero: {
+        maxHp: state.hero.maxHp,
+        hp: state.hero.hp,
+        baseAtk: state.hero.baseAtk
+      },
+      weapon: state.weapon,
+      upgrades: state.upgrades
+    };
+    localStorage.setItem('taskbar_hero_save_data', JSON.stringify(saveData));
+
+    // 通知を画面の右上にふわっと出す（任意）
+    if (showNotification && !document.hidden) {
+      const toast = document.getElementById('save-toast');
+      toast.style.opacity = '1';
+      setTimeout(() => { toast.style.opacity = '0'; }, 1000);
+    }
+  }
+
+  // ★ ロード機能の追加
+  function loadGame() {
+    const savedData = localStorage.getItem('taskbar_hero_save_data');
+    if (!savedData) return; // セーブデータがなければスキップ
+
+    try {
+      const data = JSON.parse(savedData);
+      state.gold = data.gold ?? 0;
+      state.lvl = data.lvl ?? 1;
+      state.exp = data.exp ?? 0;
+      state.maxExp = data.maxExp ?? 10;
+      
+      if (data.hero) {
+        state.hero.maxHp = data.hero.maxHp ?? 100;
+        state.hero.hp = data.hero.hp ?? data.hero.maxHp;
+        state.hero.baseAtk = data.hero.baseAtk ?? 10;
+      }
+      
+      if (data.weapon) state.weapon = data.weapon;
+      if (data.upgrades) state.upgrades = data.upgrades;
+    } catch (e) {
+      console.error("セーブデータの読み込み中にエラーが発生しました:", e);
+    }
+  }
+
+  // ★ データを最初からにするリセット機能
+  window.resetGame = () => {
+    if (confirm("これまでの進捗、ゴールド、武器がすべて消去されます。本当に最初からやり直しますか？")) {
+      localStorage.removeItem('taskbar_hero_save_data');
+      location.reload(); // ページをリロードして初期化
+    }
+  };
 
   function updateUI() {
     document.getElementById('val-lvl').innerText = state.lvl;
@@ -255,10 +346,11 @@
     }
     showGachaResult(resultMsg, color);
     updateUI();
+    saveGame(); // ★ガチャを引いた直後は即時セーブ
   };
 
   function showGachaResult(text, color) {
-    if (document.hidden) return; // タブが非表示の時はエフェクト生成をスキップして重くなるのを防ぐ
+    if (document.hidden) return;
     const el = document.createElement('div');
     el.className = 'gacha-result'; el.innerText = text; el.style.color = color;
     battleField.appendChild(el); setTimeout(() => el.remove(), 2000);
@@ -267,61 +359,39 @@
   window.upgradeAtk = () => {
     if (state.gold >= state.upgrades.atkCost) {
       state.gold -= state.upgrades.atkCost; state.hero.baseAtk += 2;
-      state.upgrades.atkCost = Math.floor(state.upgrades.atkCost * 1.5); updateUI();
+      state.upgrades.atkCost = Math.floor(state.upgrades.atkCost * 1.5); 
+      updateUI();
+      saveGame(); // ★強化直後も即時セーブ
     }
   };
 
   window.upgradeHp = () => {
     if (state.gold >= state.upgrades.hpCost) {
       state.gold -= state.upgrades.hpCost; state.hero.maxHp += 20;
-      state.hero.hp = state.hero.maxHp; state.upgrades.hpCost = Math.floor(state.upgrades.hpCost * 1.5); updateUI();
+      state.hero.hp = state.hero.maxHp; state.upgrades.hpCost = Math.floor(state.upgrades.hpCost * 1.5); 
+      updateUI();
+      saveGame(); // ★強化直後も即時セーブ
     }
   };
 
   function showDamage(x, damage) {
-    if (document.hidden) return; // タブ非表示時は数字を出さない
+    if (document.hidden) return;
     const el = document.createElement('div');
     el.className = 'damage-text'; el.innerText = Math.floor(damage);
     el.style.left = x + 'px'; el.style.bottom = '50px';
     battleField.appendChild(el); setTimeout(() => el.remove(), 800);
   }
 
-  // --- バックグラウンド完全放置のためのロジック ---
-
-  // 1. 敵のDOM要素を同期する関数
-  function syncEnemyDOM() {
-    if (document.hidden) return; // タブが隠れている時はDOM操作をしない
-
-    // 既存の敵のDOMを一旦すべて削除して再生成（シンプル化のため）
-    const existingElements = battleField.querySelectorAll('.enemy');
-    existingElements.forEach(el => el.remove());
-
-    state.enemies.forEach(enemy => {
-      const el = document.createElement('div');
-      el.className = 'entity enemy';
-      if(enemy.isBoss) {
-        el.style.width = '40px'; el.style.height = '40px';
-        el.style.backgroundColor = '#9C27B0'; el.style.boxShadow = '0 0 10px #9C27B0';
-        el.innerText = 'B';
-      } else {
-        el.innerText = 'E';
-      }
-      el.style.left = enemy.x + 'px';
-      
-      const hpContainer = document.createElement('div'); hpContainer.className = 'hp-bar-container';
-      const hpBar = document.createElement('div'); hpBar.className = 'hp-bar';
-      hpBar.style.width = Math.max(0, (enemy.hp / enemy.maxHp) * 100) + '%';
-      hpContainer.appendChild(hpBar); el.appendChild(hpContainer);
-      
-      battleField.appendChild(el);
-    });
-  }
-
-  // 2. ゲームの純粋な計算ロジック（描画を一切含まない）
   function tickGame(dt) {
+    // ★ 5秒ごとにバックグラウンドでも自動セーブを行う
+    state.saveTimer += dt;
+    if (state.saveTimer > 5) {
+      saveGame(true); // 引数にtrueを渡すと「セーブ完了」と小さく出ます
+      state.saveTimer = 0;
+    }
+
     state.spawnTimer += dt;
     if (state.spawnTimer > 1.5 && state.enemies.length < 4) {
-      // 敵の生成ロジック
       const isBoss = Math.random() < 0.1;
       const multiplier = 1 + (state.lvl * 0.3);
       state.enemies.push({
@@ -374,6 +444,7 @@
             state.maxExp = Math.floor(state.maxExp * 1.5);
             state.hero.maxHp += 15; state.hero.hp = state.hero.maxHp;
             state.hero.baseAtk += 1;
+            saveGame(); // ★レベルアップ時も即時セーブ
           }
         }
 
@@ -403,7 +474,31 @@
     }
   }
 
-  // 3. Web Workerの作成 (インライン文字列から生成して別スレッドでタイマーを回す)
+  function syncEnemyDOM() {
+    if (document.hidden) return;
+    const existingElements = battleField.querySelectorAll('.enemy');
+    existingElements.forEach(el => el.remove());
+
+    state.enemies.forEach(enemy => {
+      const el = document.createElement('div');
+      el.className = 'entity enemy';
+      if(enemy.isBoss) {
+        el.style.width = '40px'; el.style.height = '40px';
+        el.style.backgroundColor = '#9C27B0'; el.style.boxShadow = '0 0 10px #9C27B0';
+        el.innerText = 'B';
+      } else { el.innerText = 'E'; }
+      el.style.left = enemy.x + 'px';
+      
+      const hpContainer = document.createElement('div'); hpContainer.className = 'hp-bar-container';
+      const hpBar = document.createElement('div'); hpBar.className = 'hp-bar';
+      hpBar.style.width = Math.max(0, (enemy.hp / enemy.maxHp) * 100) + '%';
+      hpContainer.appendChild(hpBar); el.appendChild(hpContainer);
+      
+      battleField.appendChild(el);
+    });
+  }
+
+  // インラインWeb Workerの生成
   const workerCode = `
     let lastTime = Date.now();
     setInterval(() => {
@@ -411,21 +506,17 @@
       const dt = (now - lastTime) / 1000;
       lastTime = now;
       postMessage(dt);
-    }, 1000 / 60); // 秒間60回シミュレート
+    }, 1000 / 60);
   `;
-  
   const blob = new Blob([workerCode], { type: 'application/javascript' });
   const worker = new Worker(URL.createObjectURL(blob));
 
-  // 4. 裏でタイマーが刻まれるたびに実行される処理
   worker.onmessage = function(e) {
     let dt = e.data;
-    if (dt > 0.1) dt = 0.1; // 超極端なスパイク対策ストッパー
+    if (dt > 0.1) dt = 0.1;
 
-    // 計算を実行 (タブが閉じられていない限り、裏でも表でも常に等速で動く)
     tickGame(dt);
 
-    // 画面が見えている時だけ、見た目を更新する (ブラウザの負荷を減らす)
     if (!document.hidden) {
       heroEl.style.left = state.hero.x + 'px';
       syncEnemyDOM();
@@ -433,7 +524,6 @@
     }
   };
 
-  // 画面に戻ってきた瞬間にUIを一回強制更新する
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
       updateUI();
@@ -441,7 +531,8 @@
     }
   });
 
-  // 初回起動
+  // ★ ゲーム起動時にセーブデータを読み込む
+  loadGame();
   updateUI();
 
 </script>
