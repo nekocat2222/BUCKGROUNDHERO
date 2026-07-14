@@ -198,11 +198,10 @@
 <body>
 
 <div class="main-screen">
-  <h2>アップデートのお知らせ 2026/07/14  8:59</h2>
-  <p>敵のステータスインフレ（難易度）を上方修正しました！</p>
-  <p style="color: #c0392b; font-weight: bold; font-size: 14px;">✓ レベルが上がるにつれて、敵のHPがより跳ね上がるようになりました</p>
-  <p style="color: #c0392b; font-weight: bold; font-size: 14px;">✓ 敵の攻撃力（ATK）も強化され、DEFやRegenを上げないと耐えきれなくなります</p>
-  <p>0.23.3</p>
+  <h2>アップデートのお知らせ 2026/07/14  9:02</h2>
+  <p>ゴールド取得量のインフレを強化しました！</p>
+  <p style="color: #f39c12; font-weight: bold; font-size: 14px;">✓ レベルが上がると、敵からのドロップ金とレベルアップボーナスが爆発的に増えます</p>
+  <p>0.24.0</p>
   
   <button class="btn-reset" onclick="resetGame()">データを削除して最初からやり直す</button>
 </div>
@@ -448,9 +447,11 @@
     if (state.spawnTimer > getSpawnInterval() && state.enemies.length < 8) {
       const isBoss = Math.random() < 0.1;
       
-      // ★ 敵のインフレ計算を修正（より強力に）
       const hpMultiplier = Math.pow(1 + (state.lvl * 0.5), 1.2); 
       const atkMultiplier = 1 + (state.lvl * 0.6);
+      
+      // ★ ドロップゴールドを大幅強化（レベルの1.5乗）
+      const goldMultiplier = Math.pow(state.lvl, 1.5);
 
       state.enemies.push({
         hp: (isBoss ? 80 : 25) * hpMultiplier,
@@ -458,7 +459,7 @@
         atk: (isBoss ? 8 : 3) * atkMultiplier,
         x: window.innerWidth > 0 ? window.innerWidth : 1000,
         speed: 1.2,
-        goldDrop: (isBoss ? 25 : 5) * state.lvl, 
+        goldDrop: Math.floor((isBoss ? 25 : 5) * goldMultiplier), 
         expDrop: (isBoss ? 10 : 2) * state.lvl,
         attackCooldown: 0,
         isBoss: isBoss
@@ -504,7 +505,8 @@
             state.hero.maxHp += 15; state.hero.hp = state.hero.maxHp;
             state.hero.baseAtk += 1;
             
-            const levelUpReward = state.lvl * 50; 
+            // ★ レベルアップ報酬も大幅強化
+            const levelUpReward = Math.floor(50 * Math.pow(state.lvl, 1.5)); 
             state.gold += levelUpReward;
             
             if (!document.hidden) {
