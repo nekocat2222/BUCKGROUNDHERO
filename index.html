@@ -183,7 +183,7 @@
     z-index: 100;
   }
 
-  /* ★ モーダル共通CSS ★ */
+  /* モーダル共通CSS */
   .modal-overlay {
     position: fixed;
     top: 0; left: 0; width: 100vw; height: 100vh;
@@ -229,7 +229,7 @@
   .badge-equip { background-color: #2ecc71; color: #111; }
   .badge-discard { background-color: #7f8c8d; color: #fff; }
 
-  /* ★ 図鑑モーダル用CSS ★ */
+  /* 武器図鑑モーダルCSS */
   .book-container {
     width: 85%;
     max-width: 600px;
@@ -308,7 +308,7 @@
 
 <div id="save-toast">セーブ完了 💾</div>
 
-<!-- ★ ガチャカットインモーダル ★ -->
+<!-- ガチャカットインモーダル -->
 <div id="gacha-modal" class="modal-overlay">
   <div id="gacha-ray"></div>
   <div class="gacha-card" id="gacha-card">
@@ -320,7 +320,7 @@
   </div>
 </div>
 
-<!-- ★ 武器図鑑モーダル ★ -->
+<!-- 武器図鑑モーダル -->
 <div id="book-modal" class="modal-overlay">
   <div class="book-container">
     <div class="book-header">
@@ -370,7 +370,6 @@
 </div>
 
 <script>
-  // 図鑑用マスターデータ定義 (全48種類)
   const RARITY_DATA = [
     { key: "LEGENDARY", color: "#ffd700", prefixes: ["神の", "滅びの", "伝説の"] },
     { key: "EPIC", color: "#da70d6", prefixes: ["魔王の", "血塗られた", "覇者の"] },
@@ -387,7 +386,7 @@
     hero: { maxHp: 100, hp: 100, baseAtk: 10, baseDef: 0, baseRegen: 5, x: 50, speed: 1.5, attackCooldown: 0 },
     weapon: { name: "素手", atkBonus: 0, color: "white" },
     upgrades: { atkCost: 10, hpCost: 10, defCost: 10, regenCost: 10, spawnLvl: 1, spawnCost: 30, gachaCost: 200 },
-    encyclopedia: [], // 解放済み武器名のリスト
+    encyclopedia: [], // 解放済み武器リスト
     enemies: [],
     spawnTimer: 0,
     saveTimer: 0
@@ -450,6 +449,13 @@
         if (state.upgrades.defCost === undefined) state.upgrades.defCost = 10;
         if (state.upgrades.regenCost === undefined) state.upgrades.regenCost = 10; 
       }
+
+      // ★【補正】現在装備している武器を自動的に図鑑に未登録なら追加する
+      if (state.weapon && state.weapon.name && state.weapon.name !== "素手") {
+        if (!state.encyclopedia.includes(state.weapon.name)) {
+          state.encyclopedia.push(state.weapon.name);
+        }
+      }
     } catch (e) { console.error(e); }
   }
 
@@ -491,7 +497,7 @@
     heroHpBar.style.width = (state.hero.hp / state.hero.maxHp * 100) + '%';
   }
 
-  /* ★ ガチャ ＆ 図鑑解放ロジック ★ */
+  /* ガチャ ＆ 図鑑解放ロジック */
   window.pullGacha = () => {
     if (state.gold < state.upgrades.gachaCost) return;
     state.gold -= state.upgrades.gachaCost;
@@ -507,7 +513,7 @@
     const name = rarityInfo.prefixes[Math.floor(Math.random() * rarityInfo.prefixes.length)] + WEAPON_TYPES[Math.floor(Math.random() * WEAPON_TYPES.length)];
     const bonus = Math.floor(Math.random() * (maxAtk - minAtk + 1)) + minAtk;
 
-    // 図鑑に登録
+    // 引いた武器は（捨ててしまった場合でも）永久的に図鑑へ登録される
     if (!state.encyclopedia.includes(name)) {
       state.encyclopedia.push(name);
     }
@@ -553,7 +559,7 @@
 
   window.closeGachaModal = () => { document.getElementById('gacha-modal').style.display = "none"; };
 
-  /* ★ 図鑑モーダル制御 ★ */
+  /* 図鑑モーダル制御 */
   window.openBookModal = () => {
     const grid = document.getElementById('book-grid-list');
     grid.innerHTML = "";
