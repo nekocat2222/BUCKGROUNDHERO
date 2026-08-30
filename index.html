@@ -72,8 +72,21 @@
     color: #111;
     border-color: #fff;
     font-weight: bold;
+    box-shadow: 0 0 8px rgba(230, 184, 0, 0.6);
+    transition: transform 0.1s, box-shadow 0.2s;
   }
-  .btn-gacha:hover { background-color: #ffcc00; }
+  .btn-gacha:hover {
+    background-color: #ffcc00;
+    transform: scale(1.05);
+    box-shadow: 0 0 15px rgba(255, 204, 0, 0.9);
+  }
+
+  .btn-book {
+    background-color: #8e44ad;
+    border-color: #9b59b6;
+    font-weight: bold;
+  }
+  .btn-book:hover { background-color: #9b59b6; }
 
   .btn-reset {
     background-color: #d63031;
@@ -154,19 +167,6 @@
     animation: floatUp 0.8s forwards;
   }
 
-  .gacha-result {
-    position: absolute;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 20px;
-    font-weight: bold;
-    text-shadow: 2px 2px 4px #000;
-    pointer-events: none;
-    animation: popInOut 2s forwards;
-    z-index: 10;
-  }
-
   #save-toast {
     position: fixed;
     top: 20px;
@@ -183,22 +183,122 @@
     z-index: 100;
   }
 
+  /* ★ モーダル共通CSS ★ */
+  .modal-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0, 0, 0, 0.85);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    overflow: hidden;
+  }
+
+  #gacha-ray {
+    position: absolute;
+    width: 200vmax; height: 200vmax;
+    background: conic-gradient(from 0deg, transparent, rgba(255, 215, 0, 0.3), transparent 30deg);
+    animation: rotateRay 8s linear infinite;
+    display: none;
+  }
+
+  @keyframes rotateRay {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  .gacha-card {
+    position: relative;
+    width: 280px;
+    padding: 25px 20px;
+    background: #151515;
+    border: 3px solid #fff;
+    border-radius: 12px;
+    text-align: center;
+    color: white;
+    box-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
+    animation: cardPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    z-index: 1001;
+  }
+
+  .gacha-rarity { font-size: 14px; letter-spacing: 3px; font-weight: bold; margin-bottom: 8px; text-transform: uppercase; }
+  .gacha-weapon-name { font-size: 22px; font-weight: bold; margin: 15px 0; text-shadow: 0 0 10px rgba(255,255,255,0.5); }
+  .gacha-stats { font-size: 16px; margin-bottom: 15px; color: #ddd; }
+  .gacha-status-badge { display: inline-block; padding: 4px 12px; font-size: 12px; font-weight: bold; border-radius: 12px; margin-bottom: 15px; }
+  .badge-equip { background-color: #2ecc71; color: #111; }
+  .badge-discard { background-color: #7f8c8d; color: #fff; }
+
+  /* ★ 図鑑モーダル用CSS ★ */
+  .book-container {
+    width: 85%;
+    max-width: 600px;
+    max-height: 75vh;
+    background: #1a1a1a;
+    border: 2px solid #8e44ad;
+    border-radius: 10px;
+    padding: 20px;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0 20px rgba(142, 68, 173, 0.5);
+  }
+
+  .book-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #444;
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+  }
+
+  .book-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 10px;
+    overflow-y: auto;
+    padding-right: 5px;
+  }
+
+  .book-item {
+    background: #282828;
+    border: 1px solid #444;
+    border-radius: 6px;
+    padding: 10px 5px;
+    text-align: center;
+    font-size: 11px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 50px;
+  }
+
+  .book-item.locked {
+    color: #555 !important;
+    border-color: #333;
+    background: #181818;
+  }
+
+  .book-item-rarity { font-size: 9px; margin-bottom: 3px; font-weight: bold; }
+  .book-item-name { font-weight: bold; font-size: 12px; }
+
+  @keyframes cardPop {
+    0% { transform: scale(0.2); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
   @keyframes floatUp {
     0% { transform: translateY(0); opacity: 1; }
     100% { transform: translateY(-30px); opacity: 0; }
-  }
-  @keyframes popInOut {
-    0% { transform: translate(-50%, 20px) scale(0.5); opacity: 0; }
-    20% { transform: translate(-50%, 0) scale(1.2); opacity: 1; }
-    80% { transform: translate(-50%, 0) scale(1); opacity: 1; }
-    100% { transform: translate(-50%, -20px) scale(1); opacity: 0; }
   }
 </style>
 </head>
 <body>
 
 <div class="main-screen">
-  <h2>アップデートのお知らせ 2026/07/14  9:02</h2>
+  <h2>アップデートのお知らせ 2026/07/14 9:02</h2>
   <p>ゴールド取得量のインフレを強化しました！</p>
   <p style="color: #f39c12; font-weight: bold; font-size: 14px;">✓ レベルが上がると、敵からのドロップ金とレベルアップボーナスが爆発的に増えます</p>
   <p>0.24.0</p>
@@ -207,6 +307,32 @@
 </div>
 
 <div id="save-toast">セーブ完了 💾</div>
+
+<!-- ★ ガチャカットインモーダル ★ -->
+<div id="gacha-modal" class="modal-overlay">
+  <div id="gacha-ray"></div>
+  <div class="gacha-card" id="gacha-card">
+    <div class="gacha-rarity" id="gacha-card-rarity">COMMON</div>
+    <div class="gacha-weapon-name" id="gacha-card-name">普通の剣</div>
+    <div class="gacha-stats" id="gacha-card-stats">ATK +10</div>
+    <div><span class="gacha-status-badge" id="gacha-card-badge">EQUIPPED!</span></div>
+    <button class="btn btn-gacha" style="width: 100%; padding: 8px; font-size: 14px; margin-top: 5px;" onclick="closeGachaModal()">OK</button>
+  </div>
+</div>
+
+<!-- ★ 武器図鑑モーダル ★ -->
+<div id="book-modal" class="modal-overlay">
+  <div class="book-container">
+    <div class="book-header">
+      <h3 style="margin: 0; color: #9b59b6;">📖 武器図鑑</h3>
+      <span style="font-size: 12px; color: #ddd;">収集率: <strong id="book-progress" style="color: #ffcc00;">0/48 (0%)</strong></span>
+    </div>
+    <div class="book-grid" id="book-grid-list">
+      <!-- JSで動的生成 -->
+    </div>
+    <button class="btn" style="margin-top: 15px; padding: 8px;" onclick="closeBookModal()">閉じる</button>
+  </div>
+</div>
 
 <div id="game-container">
   <div id="ui-bar">
@@ -227,7 +353,8 @@
       <button class="btn" onclick="upgradeDef()">DEF (<span id="cost-def">10</span>G)</button>
       <button class="btn" onclick="upgradeRegen()">回復 (<span id="cost-regen">10</span>G)</button>
       <button class="btn btn-spawn" onclick="upgradeSpawn()">出現率 Lv<span id="val-spawn-lvl">1</span> (<span id="cost-spawn">30</span>G)</button>
-      <button class="btn btn-gacha" onclick="pullGacha()">武器ガチャ (<span id="cost-gacha">200</span>G)</button>
+      <button class="btn btn-gacha" onclick="pullGacha()">⚔️ ガチャ (<span id="cost-gacha">200</span>G)</button>
+      <button class="btn btn-book" onclick="openBookModal()">📖 図鑑</button>
     </div>
   </div>
   <div id="equip-bar">
@@ -243,6 +370,15 @@
 </div>
 
 <script>
+  // 図鑑用マスターデータ定義 (全48種類)
+  const RARITY_DATA = [
+    { key: "LEGENDARY", color: "#ffd700", prefixes: ["神の", "滅びの", "伝説の"] },
+    { key: "EPIC", color: "#da70d6", prefixes: ["魔王の", "血塗られた", "覇者の"] },
+    { key: "RARE", color: "#4169e1", prefixes: ["鋼鉄の", "鋭い", "騎士の"] },
+    { key: "COMMON", color: "#a9a9a9", prefixes: ["ボロボロの", "木の", "普通の"] }
+  ];
+  const WEAPON_TYPES = ["剣", "斧", "槍", "ダガー"];
+
   const state = {
     gold: 0,
     lvl: 1,
@@ -251,6 +387,7 @@
     hero: { maxHp: 100, hp: 100, baseAtk: 10, baseDef: 0, baseRegen: 5, x: 50, speed: 1.5, attackCooldown: 0 },
     weapon: { name: "素手", atkBonus: 0, color: "white" },
     upgrades: { atkCost: 10, hpCost: 10, defCost: 10, regenCost: 10, spawnLvl: 1, spawnCost: 30, gachaCost: 200 },
+    encyclopedia: [], // 解放済み武器名のリスト
     enemies: [],
     spawnTimer: 0,
     saveTimer: 0
@@ -277,7 +414,7 @@
         baseDef: state.hero.baseDef,
         baseRegen: state.hero.baseRegen
       },
-      weapon: state.weapon, upgrades: state.upgrades
+      weapon: state.weapon, upgrades: state.upgrades, encyclopedia: state.encyclopedia
     };
     localStorage.setItem('taskbar_hero_save_data', JSON.stringify(saveData));
 
@@ -305,6 +442,7 @@
         state.hero.baseRegen = data.hero.baseRegen ?? 5; 
       }
       if (data.weapon) state.weapon = data.weapon;
+      if (data.encyclopedia) state.encyclopedia = data.encyclopedia;
       if (data.upgrades) {
         state.upgrades = data.upgrades;
         if (state.upgrades.spawnLvl === undefined) state.upgrades.spawnLvl = 1;
@@ -316,7 +454,7 @@
   }
 
   window.resetGame = () => {
-    if (confirm("これまでの進捗、ゴールド、武器がすべて消去されます。本当に最初からやり直しますか？")) {
+    if (confirm("これまでの進捗、ゴールド、武器、図鑑がすべて消去されます。本当に最初からやり直しますか？")) {
       localStorage.removeItem('taskbar_hero_save_data');
       location.reload();
     }
@@ -353,39 +491,104 @@
     heroHpBar.style.width = (state.hero.hp / state.hero.maxHp * 100) + '%';
   }
 
+  /* ★ ガチャ ＆ 図鑑解放ロジック ★ */
   window.pullGacha = () => {
     if (state.gold < state.upgrades.gachaCost) return;
     state.gold -= state.upgrades.gachaCost;
     state.upgrades.gachaCost = Math.floor(state.upgrades.gachaCost * 1.5);
     
     const roll = Math.random();
-    let rarity, color, minAtk, maxAtk, prefix;
-    if (roll < 0.05) { rarity = "Legendary"; color = "#ffd700"; minAtk = 50; maxAtk = 150; prefix = ["神の", "滅びの", "伝説の"]; }
-    else if (roll < 0.20) { rarity = "Epic"; color = "#da70d6"; minAtk = 20; maxAtk = 49; prefix = ["魔王の", "血塗られた", "覇者の"]; }
-    else if (roll < 0.50) { rarity = "Rare"; color = "#4169e1"; minAtk = 8; maxAtk = 19; prefix = ["鋼鉄の", "鋭い", "騎士の"]; }
-    else { rarity = "Common"; color = "#a9a9a9"; minAtk = 1; maxAtk = 7; prefix = ["ボロボロの", "木の", "普通の"]; }
+    let rarityInfo, minAtk, maxAtk;
+    if (roll < 0.05) { rarityInfo = RARITY_DATA[0]; minAtk = 50; maxAtk = 150; }
+    else if (roll < 0.20) { rarityInfo = RARITY_DATA[1]; minAtk = 20; maxAtk = 49; }
+    else if (roll < 0.50) { rarityInfo = RARITY_DATA[2]; minAtk = 8; maxAtk = 19; }
+    else { rarityInfo = RARITY_DATA[3]; minAtk = 1; maxAtk = 7; }
 
-    const weapons = ["剣", "斧", "槍", "ダガー"];
-    const name = prefix[Math.floor(Math.random() * prefix.length)] + weapons[Math.floor(Math.random() * weapons.length)];
+    const name = rarityInfo.prefixes[Math.floor(Math.random() * rarityInfo.prefixes.length)] + WEAPON_TYPES[Math.floor(Math.random() * WEAPON_TYPES.length)];
     const bonus = Math.floor(Math.random() * (maxAtk - minAtk + 1)) + minAtk;
 
-    let resultMsg = "";
-    if (bonus > state.weapon.atkBonus) {
-      state.weapon = { name: name, atkBonus: bonus, color: color };
-      resultMsg = `✨ ${name} (ATK+${bonus}) を手に入れた！`;
-    } else {
-      resultMsg = `🗑️ ${name} (ATK+${bonus}) は弱かったので捨てた...`;
+    // 図鑑に登録
+    if (!state.encyclopedia.includes(name)) {
+      state.encyclopedia.push(name);
     }
-    showGachaResult(resultMsg, color);
+
+    let isEquipped = false;
+    if (bonus > state.weapon.atkBonus) {
+      state.weapon = { name: name, atkBonus: bonus, color: rarityInfo.color };
+      isEquipped = true;
+    }
+
+    showGachaModal(rarityInfo.key, name, bonus, rarityInfo.color, isEquipped);
     updateUI(); saveGame();
   };
 
-  function showGachaResult(text, color) {
-    if (document.hidden) return;
-    const el = document.createElement('div');
-    el.className = 'gacha-result'; el.innerText = text; el.style.color = color;
-    battleField.appendChild(el); setTimeout(() => el.remove(), 2000);
+  function showGachaModal(rarity, name, bonus, color, isEquipped) {
+    const modal = document.getElementById('gacha-modal');
+    const card = document.getElementById('gacha-card');
+    const ray = document.getElementById('gacha-ray');
+    const rarityEl = document.getElementById('gacha-card-rarity');
+    const nameEl = document.getElementById('gacha-card-name');
+    const statsEl = document.getElementById('gacha-card-stats');
+    const badgeEl = document.getElementById('gacha-card-badge');
+
+    rarityEl.innerText = `— ${rarity} —`;
+    rarityEl.style.color = color;
+    nameEl.innerText = name;
+    nameEl.style.color = color;
+    statsEl.innerText = `攻撃力 +${bonus}`;
+
+    if (isEquipped) {
+      badgeEl.innerText = "✨ NEW HIGH RECORD (装備)";
+      badgeEl.className = "gacha-status-badge badge-equip";
+    } else {
+      badgeEl.innerText = "🗑️ WEAKER (売却・破棄)";
+      badgeEl.className = "gacha-status-badge badge-discard";
+    }
+
+    card.style.borderColor = color;
+    card.style.boxShadow = `0 0 35px ${color}`;
+    ray.style.display = rarity === "LEGENDARY" ? "block" : "none";
+    modal.style.display = "flex";
   }
+
+  window.closeGachaModal = () => { document.getElementById('gacha-modal').style.display = "none"; };
+
+  /* ★ 図鑑モーダル制御 ★ */
+  window.openBookModal = () => {
+    const grid = document.getElementById('book-grid-list');
+    grid.innerHTML = "";
+    
+    let totalWeapons = 0;
+    let unlockedCount = 0;
+
+    RARITY_DATA.forEach(rarity => {
+      rarity.prefixes.forEach(prefix => {
+        WEAPON_TYPES.forEach(type => {
+          totalWeapons++;
+          const fullName = prefix + type;
+          const isUnlocked = state.encyclopedia.includes(fullName);
+          if (isUnlocked) unlockedCount++;
+
+          const itemEl = document.createElement('div');
+          itemEl.className = `book-item ${isUnlocked ? '' : 'locked'}`;
+          
+          if (isUnlocked) {
+            itemEl.innerHTML = `<div class="book-item-rarity" style="color: ${rarity.color}">${rarity.key}</div><div class="book-item-name" style="color: ${rarity.color}">${fullName}</div>`;
+            itemEl.style.borderColor = rarity.color + "66";
+          } else {
+            itemEl.innerHTML = `<div class="book-item-rarity">???</div><div class="book-item-name">？？？</div>`;
+          }
+          grid.appendChild(itemEl);
+        });
+      });
+    });
+
+    const percent = Math.floor((unlockedCount / totalWeapons) * 100);
+    document.getElementById('book-progress').innerText = `${unlockedCount}/${totalWeapons} (${percent}%)`;
+    document.getElementById('book-modal').style.display = "flex";
+  };
+
+  window.closeBookModal = () => { document.getElementById('book-modal').style.display = "none"; };
 
   window.upgradeAtk = () => {
     if (state.gold >= state.upgrades.atkCost) {
@@ -449,8 +652,6 @@
       
       const hpMultiplier = Math.pow(1 + (state.lvl * 0.5), 1.2); 
       const atkMultiplier = 1 + (state.lvl * 0.6);
-      
-      // ★ ドロップゴールドを大幅強化（レベルの1.5乗）
       const goldMultiplier = Math.pow(state.lvl, 1.5);
 
       state.enemies.push({
@@ -505,7 +706,6 @@
             state.hero.maxHp += 15; state.hero.hp = state.hero.maxHp;
             state.hero.baseAtk += 1;
             
-            // ★ レベルアップ報酬も大幅強化
             const levelUpReward = Math.floor(50 * Math.pow(state.lvl, 1.5)); 
             state.gold += levelUpReward;
             
